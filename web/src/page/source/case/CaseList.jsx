@@ -176,6 +176,7 @@ class CaseList extends React.Component{
                     message.success(responseData.msg)
                     this.setState({
                         showMoreAction:false,
+                        showAdd:false,
                     },()=>{this.fetchList()})
                 } else {
                     message.error(responseData.msg)
