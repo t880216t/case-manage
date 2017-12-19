@@ -4,6 +4,8 @@ import os
 import time
 
 import sys
+
+import xlrd
 from flask import make_response
 from flask import render_template, flash, redirect, jsonify, Response
 from app import app
@@ -156,55 +158,220 @@ def upload():
             filename = secure_filename(upload_file.filename)
             #保存文件
             upload_file.save(os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], filename))
-            try:
-                #读取文件信息
-                file = open('app/static/uploads/'+filename).read()
-                soup = BeautifulSoup(file)
-                allData = []
-                count = 1
-                for k in soup.find_all('a'):
-                    value = k.text.replace(u'\xa0', u'$')
-                    allData.append([count, value])
-                    count += 1
-                sz = []
-                allData[0].append(0)
-                allData[1].append(0)
-                sz.append(allData[0])
-                sz.append(allData[1])
-                #理出父子关系
-                for i in range(len(allData)):
-                    if i > 1:
-                        prew_index = len(allData[i - 1][1]) - len(allData[i - 1][1].replace('$', ''))
-                        now_index = len(allData[i][1]) - len(allData[i][1].replace('$', ''))
-                        if now_index - prew_index == 1:
-                            allData[i].append(allData[i - 1][0])
-                        elif now_index - prew_index == 0:
-                            try:
-                                allData[i].append(allData[i - 1][2])
-                            except:
-                                print allData[i - 1]
-                        elif now_index - prew_index < 0:
-                            for l in range(0, len(sz)):
-                                # 找新数组
-                                _prew_index = len(sz[(len(sz) - 1) - l][1]) - len(sz[(len(sz) - 1) - l][1].replace('$', ''))
-                                if now_index - _prew_index == 0:
-                                    allData[i].append(sz[(len(sz) - 1) - l][2])
-                                    break
-                        sz.append(allData[i])
-                for data in sz:
-                    try:
-                        sql = 'insert into case_list (id,title,pid,user_id,status,project_id) VALUES (%s,%s,%s,%s,%s,%s)'
-                        dbc.execute(sql, (data[0],data[1].replace('$',''),data[2],userID,0,projectID))
-                    except:
-                        print (data[0])
-                db.commit()
-                dbc.close()
-                db.close()
-                response = cors_response({'code': 0, 'msg': '上传成功'})
-                return response
-            except:
-                response = cors_response({'code': 10002, 'msg': '文件解析失败！只支持xmind导入出的纯html文件'})
-                return response
+            if "html" in filename:
+                try:
+                    #读取文件信息
+                    file = open('app/static/uploads/'+filename).read()
+                    soup = BeautifulSoup(file)
+                    allData = []
+                    count = 1
+                    for k in soup.find_all('a'):
+                        value = k.text.replace(u'\xa0', u'$')
+                        allData.append([count, value])
+                        count += 1
+                    sz = []
+                    allData[0].append(0)
+                    allData[1].append(0)
+                    sz.append(allData[0])
+                    sz.append(allData[1])
+                    #理出父子关系
+                    for i in range(len(allData)):
+                        if i > 1:
+                            prew_index = len(allData[i - 1][1]) - len(allData[i - 1][1].replace('$', ''))
+                            now_index = len(allData[i][1]) - len(allData[i][1].replace('$', ''))
+                            if now_index - prew_index == 1:
+                                allData[i].append(allData[i - 1][0])
+                            elif now_index - prew_index == 0:
+                                try:
+                                    allData[i].append(allData[i - 1][2])
+                                except:
+                                    print allData[i - 1]
+                            elif now_index - prew_index < 0:
+                                for l in range(0, len(sz)):
+                                    # 找新数组
+                                    _prew_index = len(sz[(len(sz) - 1) - l][1]) - len(sz[(len(sz) - 1) - l][1].replace('$', ''))
+                                    if now_index - _prew_index == 0:
+                                        allData[i].append(sz[(len(sz) - 1) - l][2])
+                                        break
+                            sz.append(allData[i])
+                    for data in sz:
+                        try:
+                            sql = 'insert into case_list (id,title,pid,user_id,status,project_id) VALUES (%s,%s,%s,%s,%s,%s)'
+                            dbc.execute(sql, (data[0],data[1].replace('$',''),data[2],userID,0,projectID))
+                        except:
+                            print (data[0])
+                    db.commit()
+                    dbc.close()
+                    db.close()
+                    response = cors_response({'code': 0, 'msg': '上传成功'})
+                    return response
+                except:
+                    response = cors_response({'code': 10002, 'msg': '文件解析失败！只支持xmind导入出的纯html文件'})
+                    return response
+            if "xlsx" in filename:
+                try:
+                    def get_data(file_path):
+                        """获取excel数据源"""
+                        try:
+                            data = xlrd.open_workbook(file_path)
+                            return data
+                        except Exception, e:
+                            print u'excel表格读取失败：%s' % e
+                            return None
+                    file_path = 'app/static/uploads/'+filename
+                    book = get_data(file_path)
+                    # 抓取所有sheet页的名称
+                    worksheets = book.sheet_names()
+                    print "该Excel包含的表单列表为：\n"
+                    for sheet in worksheets:
+                        print ('%s,%s' % (worksheets.index(sheet), sheet))
+                    # inp = raw_input(u'请输入表单名对应的编号，对应表单将自动转为json:\n')
+                    # sheet = book.sheet_by_index(int(inp))
+                    sheet = book.sheet_by_index(int(1))
+                    row_0 = sheet.row(0)  # 第一行是表单标题
+                    nrows = sheet.nrows  # 行号
+                    ncols = sheet.ncols  # 列号
+
+                    result = {}  # 定义json对象
+                    result["title"] = file_path  # 表单标题
+                    result["rows"] = nrows  # 行号
+                    result["children"] = []  # 每一行作为数组的一项
+                    # 遍历所有行，将excel转化为json对象
+                    for i in range(nrows):
+                        if i == 0:
+                            continue
+                        tmp = []
+                        # 遍历当前行所有列
+                        for j in range(1, ncols):
+                            value = sheet.row_values(i)[j]
+                            value = value.replace('\n', ' ')
+                            tmp.append(value)
+                        result["children"].append(tmp)
+
+                    new_result = []
+                    projects = []
+                    for data in result["children"]:
+                        project_data = []
+                        project_data.append("1")
+                        project_data.append(data[0])
+                        project_data.append("0")
+                        if project_data not in projects:
+                            projects.append(project_data)
+                    for i in range(len(projects)):
+                        projectID = int(round(time.time() * 1000)) + i * 10
+                        projects[i].append(projectID)
+
+                    moduels = []
+                    for data in result["children"]:
+                        moduels_data = []
+                        moduels_data.append(data[0])
+                        moduels_data.append(data[1])
+                        if moduels_data not in moduels:
+                            moduels.append(moduels_data)
+                    new_moduels = []
+                    for project in projects:
+                        for moduel_index in range(len(moduels)):
+                            new_moduel_data = []
+                            if project[1] == moduels[moduel_index][0]:
+                                new_moduel_data.append(str(moduel_index + 2))
+                                new_moduel_data.append(moduels[moduel_index][1])
+                                new_moduel_data.append("1")
+                                new_moduel_data.append(project[3])
+                                new_moduels.append(new_moduel_data)
+
+                    case_tiles = []
+                    for data in result["children"]:
+                        case_tiles_data = []
+                        case_tiles_data.append(data[0])
+                        case_tiles_data.append(data[1])
+                        case_tiles_data.append(data[2])
+                        if case_tiles_data not in case_tiles:
+                            case_tiles.append(case_tiles_data)
+                    new_case_tiles = []
+                    for project in projects:
+                        for moduels_data in new_moduels:
+                            for case_tiles_index in range(len(case_tiles)):
+                                new_case_data = []
+                                if moduels_data[1] == case_tiles[case_tiles_index][1] and project[1] == \
+                                        case_tiles[case_tiles_index][0]:
+                                    new_case_data.append(str(len(new_case_tiles) + len(new_moduels) + 2))
+                                    new_case_data.append(case_tiles[case_tiles_index][2])
+                                    new_case_data.append(moduels_data[0])
+                                    new_case_data.append(project[3])
+                                    new_case_tiles.append(new_case_data)
+
+
+                    case_points = []
+                    for data in result["children"]:
+                        case_points_data = []
+                        case_points_data.append(data[0])
+                        case_points_data.append(data[1])
+                        case_points_data.append(data[2])
+                        case_points_data.append(data[3])
+                        if case_points_data not in case_points:
+                            case_points.append(case_points_data)
+                    new_case_points = []
+                    for project in projects:
+                        for moduels_data in new_moduels:
+                            for case_data in new_case_tiles:
+                                for case_points_index in range(len(case_points)):
+                                    new_case_points_data = []
+                                    if case_data[1] == case_points[case_points_index][2] and project[1] == \
+                                            case_points[case_points_index][0] and moduels_data[1] == \
+                                            case_points[case_points_index][1]:
+                                        new_case_points_data.append(
+                                            str(len(new_case_tiles) + len(new_moduels) + len(new_case_points) + 2))
+                                        new_case_points_data.append(case_points[case_points_index][3])
+                                        new_case_points_data.append(case_data[0])
+                                        new_case_points_data.append(project[3])
+                                        new_case_points.append(new_case_points_data)
+
+
+                    case_details = []
+                    for data in result["children"]:
+                        case_details_data = []
+                        case_details_data.append(data[0])
+                        case_details_data.append(data[1])
+                        case_details_data.append(data[2])
+                        case_details_data.append(data[3])
+                        case_details_data.append(data[4])
+                        if case_details_data not in case_details:
+                            case_details.append(case_details_data)
+                    new_case_details = []
+                    for project in projects:
+                        for moduels_data in new_moduels:
+                            for case_data in new_case_tiles:
+                                for case_point_data in new_case_points:
+                                    for case_details_index in range(len(case_details)):
+                                        new_case_details_data = []
+                                        if case_details[case_details_index][0] == project[1] and \
+                                                case_details[case_details_index][1] == moduels_data[1] and \
+                                                case_details[case_details_index][2] == case_data[1] and \
+                                                case_details[case_details_index][3] == case_point_data[1]:
+                                            new_case_details_data.append(str(
+                                                len(new_case_tiles) + len(new_moduels) + len(new_case_points) + len(
+                                                    new_case_details) + 2))
+                                            new_case_details_data.append(case_details[case_details_index][4])
+                                            new_case_details_data.append(case_point_data[0])
+                                            new_case_details_data.append(project[3])
+                                            new_case_details.append(new_case_details_data)
+
+                    new_result = projects + new_moduels + new_case_tiles + new_case_points + new_case_details
+
+                    for data in new_result:
+                        try:
+                            sql = 'insert into case_list (id,title,pid,user_id,status,project_id) VALUES (%s,%s,%s,%s,%s,%s)'
+                            dbc.execute(sql, (data[0], data[1], data[2], userID, 0, data[3]))
+                        except:
+                            print (data)
+                    db.commit()
+                    dbc.close()
+                    db.close()
+                    response = cors_response({'code': 0, 'msg': '上传成功'})
+                    return response
+                except:
+                    response = cors_response({'code': 10002, 'msg': '文件解析失败！请检查表格格式是否正确'})
+                    return response
         else:
             response = cors_response({'code': 10002, 'msg': '不支持的文件格式'})
             return response
