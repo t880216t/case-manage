@@ -364,6 +364,8 @@ def upload():
                             dbc.execute(sql, (data[0], data[1], data[2], userID, 0, data[3]))
                         except:
                             print (data)
+                    detele_empty_sql = "delete from case_list where title =  ''"
+                    dbc.execute(detele_empty_sql)
                     db.commit()
                     dbc.close()
                     db.close()
