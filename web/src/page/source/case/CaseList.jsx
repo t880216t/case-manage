@@ -295,7 +295,11 @@ class CaseList extends React.Component{
                                     <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'rgba(0, 0, 0, 0.65)'}}>total: {record.totalCount}</span>
                                 </a>
                                 :
-                            <a style={{marginLeft:30,fontSize:16,color:'#454545'}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>{text}</a>
+                                <div style={{fontSize:16,color:'#454545'}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>
+                                    {text.split(' ').map((text_item)=>{
+                                        return(<p key={(Math.random() * Date.now()).toFixed(0)}>{text_item}</p>)
+                                    })}
+                                </div>
                 )}
         }];
 
