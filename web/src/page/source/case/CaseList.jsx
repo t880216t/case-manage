@@ -18,6 +18,7 @@ class CaseList extends React.Component{
         newCase:'',
         fileList: [],
         uploading: false,
+        showModelTitle:'',
 
     }
 
@@ -325,7 +326,12 @@ class CaseList extends React.Component{
                     </Button>
                 </div>
                 <Table rowKey="entry" columns={columns} dataSource={fetch_data} indentSize={50} scroll={{ x: '130%', y: 1000 }}  />
-                <Modal title={this.state.showModelTitle}
+                <Modal title={this.state.showModelTitle!=''?
+                            this.state.showModelTitle.split(' ').map((text_item)=>{
+                            return(<p key={(Math.random() * Date.now()).toFixed(0)}>{text_item}</p>)
+                        }):
+                            this.state.showModelTitle
+                        }
                        visible={this.state.showMoreAction}
                        onOk={()=>{console.log('handle ok')}}
                        onCancel={()=>{this.setState({showMoreAction:false,showAdd:false})}}
