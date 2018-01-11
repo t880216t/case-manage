@@ -156,6 +156,11 @@ class CaseList extends React.Component{
         })
     }
 
+    //查看任务详情
+    pushDetail = (entry,text) =>{
+        hashHistory.push('/source/case-detail/'+entry)
+    }
+
     //新建子用例
     handleSubmit=()=>{
         if(this.state.newCase === ''){
@@ -223,6 +228,36 @@ class CaseList extends React.Component{
             })
     }
 
+    //公开项目
+    openProject=(entry,text)=>{
+        var par = "entry="+entry+"&userID="+this.state.userID
+        fetch('http://127.0.0.1:5000/openproject',{
+            method: "POST",
+            mode: "cors",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: par
+        }).then((response) => {
+            return response.json()}) //把response转为json
+            .then((responseData) => { // 上面的转好的json
+                if (responseData.code === 0) {
+                    message.success(text+'  已置为公开用例')
+                    this.fetchList()
+                } else {
+                    message.error(responseData.msg)
+                }
+            })
+            .catch((error)=> {
+                if (error.statusText){
+                    message.error(error.statusText)
+                }else{
+                    message.error("网络异常，请检查您的办公网络！")
+                }
+            })
+
+    }
+
     render(){
         const { fetch_data,uploading} = this.state;
         const props = {
@@ -251,58 +286,21 @@ class CaseList extends React.Component{
             key: 'title',
             render:  (text, record) => {
                 return(
-                    record.status === 2?
-                        record.id ===1?
-                            <a style={{width:'100%',marginLeft:30,fontSize:16}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>
-                                {text}
-                                <span style={{marginLeft:'40%',fontSize:14,fontWeight:'bold',}}>process: {Math.round((record.doneCount / record.totalCount)*100)}%</span>
-                                <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#3dbb2b'}}>pass: {record.doneCount}</span>
-                                <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#ff9933'}}>fail: {record.failedCount}</span>
-                                <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'rgba(0, 0, 0, 0.65)'}}>total: {record.totalCount}</span>
-                            </a>
+                    <a style={{width:'100%',marginLeft:30,fontSize:16}} onClick={()=>{this.pushDetail(record.entry,text)}}>
+                        {text}
+                        <span style={{marginLeft:'40%',fontSize:14,fontWeight:'bold',}}>process: {Math.round((record.doneCount / record.totalCount)*100)}%</span>
+                        <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#3dbb2b'}}>pass: {record.doneCount}</span>
+                        <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#ff9933'}}>fail: {record.failedCount}</span>
+                        <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'rgba(0, 0, 0, 0.65)'}}>total: {record.totalCount}</span>
+                        {record.order_user === 0?
+                            <Button style={{marginLeft:10,fontSize:11,fontWeight:'bold', backgroundColor:'#3dbb2b',color:'white'}} size={'small'}>公开</Button>
                             :
-                        <a style={{color:'red',marginLeft:30,fontSize:16}}onClick={()=>{this.handleMoreAction(record.entry,text)}}>{text}</a>
-                        :
-                    record.status === 1?
-                        record.id ===1?
-                            <a style={{width:'100%',marginLeft:30,fontSize:16}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>
-                                {text}
-                                <span style={{marginLeft:'40%',fontSize:14,fontWeight:'bold',}}>process: {Math.round((record.doneCount / record.totalCount)*100)}%</span>
-                                <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#3dbb2b'}}>pass: {record.doneCount}</span>
-                                <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#ff9933'}}>fail: {record.failedCount}</span>
-                                <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'rgba(0, 0, 0, 0.65)'}}>total: {record.totalCount}</span>
-                            </a>
-                            :
-                        <a style={{color:'green',marginLeft:30,fontSize:16}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>{text}</a>
-                        :
-                        record.children.length > 0?
-                                record.id ===1?
-                                    <a style={{width:'100%',marginLeft:30,fontSize:16}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>
-                                        {text}
-                                        <span style={{marginLeft:'40%',fontSize:14,fontWeight:'bold',}}>process: {Math.round((record.doneCount / record.totalCount)*100)}%</span>
-                                        <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#3dbb2b'}}>pass: {record.doneCount}</span>
-                                        <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#ff9933'}}>fail: {record.failedCount}</span>
-                                        <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'rgba(0, 0, 0, 0.65)'}}>total: {record.totalCount}</span>
-                                        </a>
-                                :
-                                <a style={{marginLeft:30,fontSize:16}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>{text}</a>
-                            :
-                            record.id ===1?
-                                <a style={{width:'100%',marginLeft:30,fontSize:16}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>
-                                    {text}
-                                    <span style={{marginLeft:'40%',fontSize:14,fontWeight:'bold',}}>process: {Math.round((record.doneCount / record.totalCount)*100)}%</span>
-                                    <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#3dbb2b'}}>pass: {record.doneCount}</span>
-                                    <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'#ff9933'}}>fail: {record.failedCount}</span>
-                                    <span style={{marginLeft:10,fontSize:14,fontWeight:'bold',color:'rgba(0, 0, 0, 0.65)'}}>total: {record.totalCount}</span>
-                                </a>
-                                :
-                                <div style={{fontSize:16,color:'#454545'}} onClick={()=>{this.handleMoreAction(record.entry,text)}}>
-                                    {text.split(' ').map((text_item)=>{
-                                        return(<p key={(Math.random() * Date.now()).toFixed(0)}>{text_item}</p>)
-                                    })}
-                                </div>
+                            <Button style={{marginLeft:10,fontSize:11,fontWeight:'bold', backgroundColor:'#595351',color:'white'}}  size={'small'}>个人</Button>
+                        }
+                    </a>
                 )}
-        }];
+        }
+        ];
 
         return(
             <Page title="case列表" loading={this.state.isLoading}>
@@ -325,7 +323,7 @@ class CaseList extends React.Component{
                         {uploading ? '正在上传...' : '开始上传' }
                     </Button>
                 </div>
-                <Table rowKey="entry" columns={columns} dataSource={fetch_data} indentSize={50} scroll={{ x: '130%', y: 1000 }}  />
+                <Table rowKey="entry" columns={columns} dataSource={fetch_data} pagination={{ pageSize: 20 }} indentSize={50} scroll={{ x: '130%', y: 1000 }}  />
                 <Modal title={this.state.showModelTitle!=''?
                             this.state.showModelTitle.split(' ').map((text_item)=>{
                             return(<p key={(Math.random() * Date.now()).toFixed(0)}>{text_item}</p>)
