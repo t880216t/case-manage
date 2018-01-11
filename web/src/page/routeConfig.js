@@ -14,6 +14,13 @@ export default [
                 cb(null, require('./source/case/CaseList.jsx'))
             })
         }
+    },{
+        path: '/source/case-detail/:entry',
+        getComponent: (location, cb) => {
+            require.ensure([], (require) => {
+                cb(null, require('./source/case/CaseDetail.jsx'))
+            })
+        }
     },
     // {
     //     path: '/source/recent-table',
