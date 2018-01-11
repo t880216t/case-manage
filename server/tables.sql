@@ -18,6 +18,8 @@ CREATE TABLE `case_list` (
   `status` int(10) DEFAULT NULL,
   `project_id` bigint(20) DEFAULT NULL,
   `entry` bigint(20) NOT NULL AUTO_INCREMENT,
+  `updateUser` varchar(255) DEFAULT NULL,
+  `updateTime` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`entry`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4011 DEFAULT CHARSET=utf8;
 
