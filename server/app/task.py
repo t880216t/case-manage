@@ -2,9 +2,7 @@
 import MySQLdb
 import os
 import time
-
 import sys
-
 import xlrd
 from flask import make_response
 from flask import render_template, flash, redirect, jsonify, Response
@@ -26,6 +24,77 @@ def LongToInt(value):
     assert isinstance(value, (int, long))
     return int(value & sys.maxint)
 
+@app.route('/gettaskdetail', methods=['GET', 'POST'])
+def get_task_detail():
+    if request.values.get("userID"):
+        userID = request.values.get("userID")
+    else:
+        userID = 0
+    entry = request.values.get("entry")
+    # 连接
+    db = MySQLdb.connect(database_host,database_username,database_password,database1)
+    dbc = db.cursor()
+    # 编码问题
+    db.set_character_set('utf8')
+    dbc.execute('SET NAMES utf8;')
+    dbc.execute('SET CHARACTER SET utf8;')
+    dbc.execute('SET character_set_connection=utf8;')
+
+    sql = 'select distinct project_id from case_list where entry = %s'
+    dbc.execute(sql,(entry,))
+    project_ids = dbc.fetchall()
+    if len(project_ids) == 0:
+        dbc.close()
+        db.close()
+        response = cors_response({"code": 10001, "msg": "还没有任务"})
+        return response
+    relnewResult = []
+    for project_id in project_ids:
+        sql = 'select * from case_list where project_id = %s'
+        #mysqldb版本兼容
+        try:
+            dbc.execute(sql, (project_id))
+        except:
+            dbc.execute(sql, (project_id,))
+        sz = dbc.fetchall()
+        order_user = sz[0][3]
+        totalCount = LongToInt(dbc.execute('select * from case_list where project_id = %s AND id > 1' % project_id))
+        doneCount = LongToInt(dbc.execute('select * from case_list where project_id = %s AND status = 1' % project_id))
+        failedCount = LongToInt(dbc.execute('select * from case_list where project_id = %s AND status = 2' % project_id))
+        def getchild(pid):
+            result = []
+            for obj in sz:
+                if obj[2] == pid:
+                    result.append({
+                        "id": obj[0],
+                        "title": obj[1].replace('$',''),
+                        "pid": obj[2],
+                        "entry": obj[7],
+                        "status": obj[5],
+                        "updateUser": obj[8],
+                        "updateTime": obj[9],
+                        "children": getchild(obj[0]),
+                    })
+            return result
+        newResult = getchild(0)
+        for item in range(1, len(newResult)):
+            newResult[0]["children"].append(newResult[item])
+        for item in range(1,len(newResult)):
+            newResult.pop()
+        newResult[0]['totalCount']=totalCount
+        newResult[0]['doneCount']=doneCount
+        newResult[0]['failedCount']=failedCount
+        newResult[0]['order_user']=order_user
+        relnewResult.append(newResult[0])
+    _result = {
+        "code": 0,
+        "content": relnewResult
+    }
+    response = cors_response(_result)
+    dbc.close()
+    db.close()
+    return response
+
 @app.route('/gettasklist', methods=['GET', 'POST'])
 def get_task_list():
     if request.values.get("userID"):
@@ -42,7 +111,7 @@ def get_task_list():
     dbc.execute('SET CHARACTER SET utf8;')
     dbc.execute('SET character_set_connection=utf8;')
 
-    sql = 'select distinct project_id from case_list where user_id = %s'
+    sql = 'select distinct project_id from case_list where user_id = %s or user_id = 0'
     dbc.execute(sql,(userID,))
     project_ids = dbc.fetchall()
     if len(project_ids) == 0:
@@ -52,14 +121,15 @@ def get_task_list():
         return response
     relnewResult = []
     for project_id in project_ids:
-        sql = 'select * from case_list where project_id = %s'
+        sql = 'select * from case_list where project_id = %s and id = 1'
         #mysqldb版本兼容
         try:
             dbc.execute(sql, (project_id))
         except:
             dbc.execute(sql, (project_id,))
         sz = dbc.fetchall()
-        totalCount = len(sz)
+        order_user = sz[0][3]
+        totalCount = LongToInt(dbc.execute('select * from case_list where project_id = %s AND id > 1' % project_id))
         doneCount = LongToInt(dbc.execute('select * from case_list where project_id = %s AND status = 1' % project_id))
         failedCount = LongToInt(dbc.execute('select * from case_list where project_id = %s AND status = 2' % project_id))
         def getchild(pid):
@@ -72,7 +142,6 @@ def get_task_list():
                         "pid": obj[2],
                         "entry": obj[7],
                         "status": obj[5],
-                        "children": getchild(obj[0]),
                     })
             return result
         newResult = getchild(0)
@@ -83,6 +152,7 @@ def get_task_list():
         newResult[0]['totalCount']=totalCount
         newResult[0]['doneCount']=doneCount
         newResult[0]['failedCount']=failedCount
+        newResult[0]['order_user']=order_user
         relnewResult.append(newResult[0])
     _result = {
         "code": 0,
@@ -386,6 +456,8 @@ def settaskstatus():
     if request.values.get("entry"):
         entry = request.values.get("entry")
         status = request.values.get("status")
+        updateUser = request.values.get("updateUser")
+        updateTime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))
         if entry.isdigit() == False:
             response = cors_response({'code': 10002, 'msg': '呵呵呵呵呵呵呵呵'})
             return response
@@ -401,8 +473,8 @@ def settaskstatus():
     dbc.execute('SET NAMES utf8;')
     dbc.execute('SET CHARACTER SET utf8;')
     dbc.execute('SET character_set_connection=utf8;')
-    sql = 'update case_list set status = %s where entry = %s'
-    state = dbc.execute(sql,(status,entry))
+    sql = 'update case_list set status = %s ,updateUser= %s , updateTime = %s where entry = %s'
+    state = dbc.execute(sql,(status,updateUser,updateTime,entry))
     db.commit()
     need_value_sql = 'select * from case_list WHERE entry = %s' % entry
     dbc.execute(need_value_sql)
@@ -411,8 +483,8 @@ def settaskstatus():
     project_id = list[6]
     if status == u'2':
         def updateFather(id):
-            fasql = 'update case_list set status = 2 where id = %s and project_id = %s'
-            dbc.execute(fasql,(id,project_id))
+            fasql = 'update case_list set status = 2  ,updateUser= %s , updateTime = %s where id = %s and project_id = %s'
+            dbc.execute(fasql,(updateUser,updateTime,id,project_id))
             db.commit()
             se_fasql = 'select * from case_list where id = %s and project_id = %s'
             dbc.execute(se_fasql, (id, project_id))
@@ -430,8 +502,8 @@ def settaskstatus():
             dbc.execute(son_new_sql, (id, project_id))
             son_new_list = dbc.fetchall()
             if len(son_fail_list) == 0 and len(son_new_list) == 0:
-                fasql = 'update case_list set status = 1 where id = %s and project_id = %s'
-                dbc.execute(fasql,(id,project_id))
+                fasql = 'update case_list set status = 1 ,updateUser= %s , updateTime = %s where id = %s and project_id = %s'
+                dbc.execute(fasql,(updateUser,updateTime,id,project_id))
                 db.commit()
                 se_fasql = 'select * from case_list where id = %s and project_id = %s'
                 dbc.execute(se_fasql, (id, project_id))
@@ -440,8 +512,8 @@ def settaskstatus():
                     if se_list[2] != 0:
                         updateFather(se_list[2])
             if len(son_fail_list) == 0 and len(son_new_list) > 0:
-                fasql = 'update case_list set status = 0 where id = %s and project_id = %s'
-                dbc.execute(fasql, (id, project_id))
+                fasql = 'update case_list set status = 0 ,updateUser= %s , updateTime = %s where id = %s and project_id = %s'
+                dbc.execute(fasql, (updateUser,updateTime,id, project_id))
                 db.commit()
                 se_fasql = 'select * from case_list where id = %s and project_id = %s'
                 dbc.execute(se_fasql, (id, project_id))
@@ -504,4 +576,66 @@ def deletecase():
         dbc.close()
         db.close()
         response = cors_response({'code': 10001, 'msg': '删除失败'})
+        return response
+
+@app.route('/openproject', methods=['GET', 'POST'])
+def openproject():
+    entry = request.values.get("entry")
+    userID = request.values.get("userID")
+    # 入库
+    db = MySQLdb.connect(database_host,database_username,database_password,database1)
+    dbc = db.cursor()
+    # 编码问题
+    db.set_character_set('utf8')
+    dbc.execute('SET NAMES utf8;')
+    dbc.execute('SET CHARACTER SET utf8;')
+    dbc.execute('SET character_set_connection=utf8;')
+
+    sql = 'select * from case_list WHERE entry = %s' % entry
+    dbc.execute(sql)
+    list = dbc.fetchone()
+    project_id = list[6]
+    update_sql = 'update case_list set user_id = 0 WHERE project_id = %s'
+    state = dbc.execute(update_sql, (project_id,))
+    db.commit()
+    if state:
+        dbc.close()
+        db.close()
+        response = cors_response({'code': 0, 'msg': '公开项目成功'})
+        return response
+    else:
+        dbc.close()
+        db.close()
+        response = cors_response({'code': 10001, 'msg': '公开项目失败'})
+        return response
+
+@app.route('/initProjectStatus', methods=['GET', 'POST'])
+def initProjectStatus():
+    entry = request.values.get("entry")
+    userID = request.values.get("userID")
+    # 入库
+    db = MySQLdb.connect(database_host,database_username,database_password,database1)
+    dbc = db.cursor()
+    # 编码问题
+    db.set_character_set('utf8')
+    dbc.execute('SET NAMES utf8;')
+    dbc.execute('SET CHARACTER SET utf8;')
+    dbc.execute('SET character_set_connection=utf8;')
+
+    sql = 'select * from case_list WHERE entry = %s' % entry
+    dbc.execute(sql)
+    list = dbc.fetchone()
+    project_id = list[6]
+    update_sql = 'update case_list set status = 0 , updateUser = "" , updateTime = "" WHERE project_id = %s'
+    state = dbc.execute(update_sql, (project_id,))
+    db.commit()
+    if state:
+        dbc.close()
+        db.close()
+        response = cors_response({'code': 0, 'msg': '重置项目状态成功'})
+        return response
+    else:
+        dbc.close()
+        db.close()
+        response = cors_response({'code': 10001, 'msg': '重置项目状态失败'})
         return response
