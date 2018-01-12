@@ -388,7 +388,7 @@ def upload():
                                     new_case_points_data = []
                                     if case_data[1] == case_points[case_points_index][2] and project[1] == \
                                             case_points[case_points_index][0] and moduels_data[1] == \
-                                            case_points[case_points_index][1]:
+                                            case_points[case_points_index][1] and case_data[2]== moduels_data[0]:
                                         new_case_points_data.append(
                                             str(len(new_case_tiles) + len(new_moduels) + len(new_case_points) + 2))
                                         new_case_points_data.append(case_points[case_points_index][3])
@@ -417,7 +417,9 @@ def upload():
                                         if case_details[case_details_index][0] == project[1] and \
                                                 case_details[case_details_index][1] == moduels_data[1] and \
                                                 case_details[case_details_index][2] == case_data[1] and \
-                                                case_details[case_details_index][3] == case_point_data[1]:
+                                                case_details[case_details_index][3] == case_point_data[1] and \
+                                                case_point_data[2] == case_data[0] and \
+                                                case_data[2] == moduels_data[0]:
                                             new_case_details_data.append(str(
                                                 len(new_case_tiles) + len(new_moduels) + len(new_case_points) + len(
                                                     new_case_details) + 2))
