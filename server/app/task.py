@@ -503,7 +503,7 @@ def settaskstatus():
             son_new_sql = 'select * from case_list where pid = %s and project_id = %s  and status = 0'
             dbc.execute(son_new_sql, (id, project_id))
             son_new_list = dbc.fetchall()
-            if len(son_fail_list) == 0 and len(son_new_list) == 0:
+            if len(son_fail_list) == 0 and len(son_new_list) == 0 and id != 1:
                 fasql = 'update case_list set status = 1 ,updateUser= %s , updateTime = %s where id = %s and project_id = %s'
                 dbc.execute(fasql,(updateUser,updateTime,id,project_id))
                 db.commit()
@@ -513,7 +513,7 @@ def settaskstatus():
                 if id != 0:
                     if se_list[2] != 0:
                         updateFather(se_list[2])
-            if len(son_fail_list) == 0 and len(son_new_list) > 0:
+            if len(son_fail_list) == 0 and len(son_new_list) > 0 and id != 1:
                 fasql = 'update case_list set status = 0 ,updateUser= %s , updateTime = %s where id = %s and project_id = %s'
                 dbc.execute(fasql, (updateUser,updateTime,id, project_id))
                 db.commit()
