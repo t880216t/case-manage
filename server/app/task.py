@@ -475,14 +475,24 @@ def settaskstatus():
     dbc.execute('SET NAMES utf8;')
     dbc.execute('SET CHARACTER SET utf8;')
     dbc.execute('SET character_set_connection=utf8;')
-    sql = 'update case_list set status = %s ,updateUser= %s , updateTime = %s where entry = %s'
-    state = dbc.execute(sql,(status,updateUser,updateTime,entry))
-    db.commit()
     need_value_sql = 'select * from case_list WHERE entry = %s' % entry
     dbc.execute(need_value_sql)
     list = dbc.fetchone()
+    id = list[0]
     pid = list[2]
     project_id = list[6]
+    son_sql = 'select * from case_list where pid = %s and project_id = %s and (status = 0 or status = 2)'
+    dbc.execute(son_sql, (id, project_id))
+    son_list = dbc.fetchall()
+    if len(son_list) > 0:
+        dbc.close()
+        db.close()
+        response = cors_response({'code': 10002, 'msg': '请先确认子用例已完成'})
+        return response
+    #修改记录
+    sql = 'update case_list set status = %s ,updateUser= %s , updateTime = %s where entry = %s'
+    state = dbc.execute(sql, (status, updateUser, updateTime, entry))
+    db.commit()
     if status == u'2':
         def updateFather(id):
             fasql = 'update case_list set status = 2  ,updateUser= %s , updateTime = %s where id = %s and project_id = %s'
